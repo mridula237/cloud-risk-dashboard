@@ -1,0 +1,194 @@
+body {
+  margin: 0;
+  font-family: Inter, system-ui, Arial;
+  background: radial-gradient(circle at top, #0c0f13, #020304);
+  color: #e6e6e6;
+}
+
+.dashboard {
+  max-width: 1400px;
+  margin: auto;
+  padding: 40px 30px 80px 30px;
+}
+
+h1 {
+  font-size: 32px;
+  font-weight: 600;
+  margin-bottom: 25px;
+}
+
+/* TABS */
+
+.tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 30px;
+}
+
+.tabs button {
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: #111;
+  border: 1px solid #222;
+  color: #ddd;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.tabs button:hover {
+  background: #1a1a1a;
+}
+
+/* METRICS */
+
+.metrics{
+  display:grid;
+  grid-template-columns:repeat(6,1fr);
+  gap:16px;
+  margin-bottom:30px;
+  }
+  .simulation-metrics{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+    gap:20px;
+    justify-content:center;
+    margin-top:20px;
+    }
+  
+  .card{
+  background:#0f172a;
+  padding:20px;
+  border-radius:10px;
+  text-align:center;
+  }
+  
+  .card p{
+  font-size:22px;
+  font-weight:600;
+  }
+
+.card h3 {
+  font-size: 15px;
+  color: #aaa;
+  margin-bottom: 10px;
+}
+
+
+/* SECTIONS */
+
+.section {
+  margin-top: 45px;
+}
+
+.section-title {
+  font-size: 22px;
+  margin-bottom: 20px;
+  font-weight: 600;
+}
+
+/* GRID LAYOUT */
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 25px;
+}
+
+/* CHART BOX */
+
+.chart-box {
+  background: #0b0d10;
+  border: 1px solid #1d1f23;
+  border-radius: 12px;
+  padding: 20px;
+  min-height: 360px;
+}
+
+.chart-box h3 {
+  font-size: 18px;
+  margin-bottom: 15px;
+  font-weight: 600;
+}
+
+/* SIMULATOR */
+
+.simulator {
+  margin-top: 25px;
+  margin-bottom: 40px;
+}
+
+.simulator-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 20px;
+  margin-bottom: 25px;
+}
+
+.simulator-controls input {
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #222;
+  background: #111;
+  color: white;
+}
+
+.simulator-controls button {
+  background: #00d4ff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 20px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* CORRELATION HEATMAP */
+
+.corr-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.corr-table th {
+  padding: 6px;
+  color: #ccc;
+  font-weight: 500;
+}
+
+.corr-table td {
+  padding: 6px;
+  text-align: center;
+  border: 1px solid #0f1114;
+}
+
+/* PIE CHART */
+
+.recharts-legend-item-text {
+  font-size: 14px !important;
+}
+
+/* CHART GRID LINES */
+
+.recharts-cartesian-grid line {
+  stroke: #1a1a1a;
+}
+
+/* AXIS */
+
+.recharts-xAxis text,
+.recharts-yAxis text {
+  fill: #aaa;
+  font-size: 12px;
+}
+
+/* TOOLTIP */
+
+.recharts-tooltip-wrapper {
+  font-size: 13px;
+}
+
+/* STRESS TEST BOX */
+
+.stress-box {
+  margin-top: 30px;
+}

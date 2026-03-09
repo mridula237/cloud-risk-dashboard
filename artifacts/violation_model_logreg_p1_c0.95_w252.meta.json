@@ -1,0 +1,125 @@
+{
+  "portfolio_id": 1,
+  "model_name": "logreg",
+  "confidence": 0.95,
+  "window": 252,
+  "positive_rate": 0.05370843989769821,
+  "metrics": {
+    "roc_auc": 0.5866129287181919,
+    "precision@0.5": 0.07114624505928854,
+    "recall@0.5": 0.47368421052631576,
+    "f1@0.5": 0.12371134020618557,
+    "confusion_matrix@0.5": [
+      [
+        431,
+        235
+      ],
+      [
+        20,
+        18
+      ]
+    ],
+    "classification_report@0.5": "              precision    recall  f1-score   support\n\n           0       0.96      0.65      0.77       666\n           1       0.07      0.47      0.12        38\n\n    accuracy                           0.64       704\n   macro avg       0.51      0.56      0.45       704\nweighted avg       0.91      0.64      0.74       704\n",
+    "thresholds": {
+      "best_f1_threshold": 0.6284053592794233,
+      "best_precision_at_recall_50": {
+        "threshold": 0.48840060998066187,
+        "precision": 0.07326007326007326,
+        "recall": 0.5263157894736842
+      },
+      "best_recall_at_precision_10": {
+        "threshold": 0.6230582184814903,
+        "precision": 0.1,
+        "recall": 0.2894736842105263
+      }
+    },
+    "top_features": [
+      {
+        "feature": "mean_20",
+        "importance": 0.28925147642932925,
+        "raw_value": -0.28925147642932925,
+        "direction": "decreases_violation_risk",
+        "type": "coefficient"
+      },
+      {
+        "feature": "vol_5",
+        "importance": 0.28823970448841424,
+        "raw_value": 0.28823970448841424,
+        "direction": "increases_violation_risk",
+        "type": "coefficient"
+      },
+      {
+        "feature": "max_20",
+        "importance": 0.1839741637655328,
+        "raw_value": 0.1839741637655328,
+        "direction": "increases_violation_risk",
+        "type": "coefficient"
+      },
+      {
+        "feature": "vol_20",
+        "importance": 0.09857210253081604,
+        "raw_value": -0.09857210253081604,
+        "direction": "decreases_violation_risk",
+        "type": "coefficient"
+      },
+      {
+        "feature": "ret",
+        "importance": 0.09372787254260374,
+        "raw_value": -0.09372787254260374,
+        "direction": "decreases_violation_risk",
+        "type": "coefficient"
+      },
+      {
+        "feature": "drawdown_30",
+        "importance": 0.08874740488477982,
+        "raw_value": -0.08874740488477982,
+        "direction": "decreases_violation_risk",
+        "type": "coefficient"
+      },
+      {
+        "feature": "lag_2",
+        "importance": 0.062335121461478384,
+        "raw_value": 0.062335121461478384,
+        "direction": "increases_violation_risk",
+        "type": "coefficient"
+      },
+      {
+        "feature": "mean_5",
+        "importance": 0.05337135129423687,
+        "raw_value": -0.05337135129423687,
+        "direction": "decreases_violation_risk",
+        "type": "coefficient"
+      },
+      {
+        "feature": "lag_5",
+        "importance": 0.03403192986208716,
+        "raw_value": 0.03403192986208716,
+        "direction": "increases_violation_risk",
+        "type": "coefficient"
+      },
+      {
+        "feature": "vol_30",
+        "importance": 0.031447098716775465,
+        "raw_value": -0.031447098716775465,
+        "direction": "decreases_violation_risk",
+        "type": "coefficient"
+      }
+    ],
+    "n_train": 2815,
+    "n_test": 704
+  },
+  "feature_columns": [
+    "ret",
+    "lag_1",
+    "lag_2",
+    "lag_5",
+    "mean_5",
+    "mean_20",
+    "vol_5",
+    "vol_20",
+    "vol_30",
+    "min_20",
+    "max_20",
+    "drawdown_30"
+  ]
+}
