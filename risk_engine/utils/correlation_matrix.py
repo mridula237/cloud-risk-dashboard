@@ -1,7 +1,5 @@
 import pandas as pd
-from sqlalchemy import create_engine
-
-engine = create_engine("postgresql://localhost/risk_platform")
+from db import engine
 
 def get_correlation_matrix():
 

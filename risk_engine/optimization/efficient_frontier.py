@@ -2,9 +2,7 @@ import numpy as np
 import pandas as pd
 
 from risk_engine.utils.portfolio_loader import get_portfolio_returns
-from sqlalchemy import create_engine
-
-engine = create_engine("postgresql://localhost/risk_platform")
+from db import engine
 
 
 def compute_efficient_frontier(portfolio_id: int, num_portfolios=5000):

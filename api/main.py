@@ -6,8 +6,9 @@ import pandas as pd
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import create_engine
+from db import engine
 from risk_engine.utils.correlation_matrix import get_correlation_matrix
+from fastapi.middleware.cors import CORSMiddleware
 
 from risk_engine.stress_testing.portfolio_stress import run_stress_test
 from risk_engine.utils.correlation_matrix import get_correlation_matrix
@@ -16,9 +17,15 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://localhost/risk_platform")
-engine = create_engine(DATABASE_URL)
 
 app = FastAPI(title="Cloud Risk Platform API")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -110,6 +117,24 @@ def portfolio_volatility(portfolio_id: int, window: int = 30):
     vol = series.rolling(window).std().dropna()
     out = [{"date": str(d), "volatility": float(v)} for d, v in vol.items()]
     return _json_safe(out)
+
+@app.get("/allocation")
+def portfolio_allocation():
+    import pandas as pd
+    from sqlalchemy import create_engine
+    
+    engine = create_engine(DATABASE_URL)
+
+    query = """
+    SELECT a.symbol, p.weight
+    FROM positions p
+    JOIN assets a ON p.asset_id = a.asset_id
+    WHERE p.portfolio_id = 1
+    """
+
+    df = pd.read_sql(query, engine)
+
+    return df.to_dict(orient="records")
 
 # -------------------------------------------------------
 # ✅ REQUIRED by your frontend: /portfolio/monte_carlo/{id}

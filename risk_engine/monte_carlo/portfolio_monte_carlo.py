@@ -4,14 +4,7 @@ from sqlalchemy import create_engine, text
 
 # Database connection
 import os
-from sqlalchemy import create_engine
-
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://localhost/risk_platform"
-)
-
-engine = create_engine(DATABASE_URL)
+from db import engine
 
 def monte_carlo_portfolio(portfolio_id=1, simulations=10000, confidence=0.95):
     """

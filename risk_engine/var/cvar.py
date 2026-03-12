@@ -1,8 +1,7 @@
 import pandas as pd
 import numpy as np
-from sqlalchemy import create_engine
+from db import engine
 
-engine = create_engine("postgresql://localhost/risk_platform")
 
 
 def calculate_cvar(confidence=0.95):

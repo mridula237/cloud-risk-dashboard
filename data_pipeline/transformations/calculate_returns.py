@@ -1,17 +1,14 @@
-import pandas as pd
-from sqlalchemy import create_engine, text
-
 import os
-from sqlalchemy import create_engine
+import pandas as pd
+from db import engine
+from sqlalchemy import text
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://localhost/risk_platform"
-)
-
-engine = create_engine(DATABASE_URL)
+# -----------------------------
+# CALCULATE RETURNS
+# -----------------------------
 
 def calculate_returns():
+
     query = """
         SELECT asset_id, date, adj_close
         FROM price_data
@@ -35,7 +32,12 @@ def calculate_returns():
     with engine.begin() as conn:
         conn.execute(text("TRUNCATE TABLE returns;"))
 
-    returns.to_sql("returns", engine, if_exists="append", index=False)
+    returns.to_sql(
+        "returns",
+        engine,
+        if_exists="append",
+        index=False
+    )
 
     print("Returns calculated and inserted successfully.")
 

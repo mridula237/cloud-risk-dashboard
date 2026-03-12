@@ -1,8 +1,6 @@
 import pandas as pd
 import numpy as np
-from sqlalchemy import create_engine
-
-engine = create_engine("postgresql://localhost/risk_platform")
+from db import engine
 
 
 def calculate_portfolio_var(portfolio_id=1, confidence=0.95):

@@ -1,22 +1,7 @@
-import os
 import yfinance as yf
 import pandas as pd
-from sqlalchemy import create_engine, text
-
-# -----------------------------
-# DATABASE CONFIG
-# -----------------------------
-
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://localhost/risk_platform"
-)
-
-engine = create_engine(DATABASE_URL)
-
-# -----------------------------
-# ASSETS (20 diversified tickers)
-# -----------------------------
+from db import engine
+from sqlalchemy import text
 
 TICKERS = [
     "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL",
@@ -30,10 +15,6 @@ TICKERS = [
 START_DATE = "2010-01-01"
 END_DATE = "2024-12-31"
 
-
-# -----------------------------
-# LOAD ASSETS
-# -----------------------------
 
 def load_assets():
     print("Loading asset metadata...")
@@ -49,12 +30,7 @@ def load_assets():
             conn.execute(insert_stmt, {"symbol": ticker})
 
 
-# -----------------------------
-# LOAD PRICE DATA
-# -----------------------------
-
 def load_prices():
-
     print("Downloading market data...")
 
     data = yf.download(
@@ -67,11 +43,9 @@ def load_prices():
     )
 
     for ticker in TICKERS:
-
         print(f"Processing {ticker}...")
 
         df = data[ticker].reset_index()
-
         df = df[["Date", "Open", "High", "Low", "Close", "Volume"]]
 
         df.columns = [
@@ -83,34 +57,21 @@ def load_prices():
             "volume"
         ]
 
-        # auto_adjust=True → close is already adjusted
         df["adj_close"] = df["close"]
-
         df["daily_return"] = df["close"].pct_change()
-
         df = df.dropna()
 
-        # -------------------------
-        # GET ASSET ID
-        # -------------------------
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("SELECT id FROM assets WHERE symbol = :symbol"),
+                {"symbol": ticker}
+            ).fetchone()
 
-        asset_query = text("""
-            SELECT asset_id FROM assets WHERE symbol = :symbol
-        """)
+        if result is None:
+            raise Exception(f"Asset not found for {ticker}")
 
-        asset_id_df = pd.read_sql(
-            asset_query,
-            engine,
-            params={"symbol": ticker}
-        )
-
-        asset_id = asset_id_df["asset_id"].iloc[0]
-
+        asset_id = result[0]
         df["asset_id"] = asset_id
-
-        # -------------------------
-        # CLEAN EXISTING DATA
-        # -------------------------
 
         delete_prices = text("""
             DELETE FROM price_data WHERE asset_id = :aid
@@ -123,10 +84,6 @@ def load_prices():
         with engine.begin() as conn:
             conn.execute(delete_prices, {"aid": asset_id})
             conn.execute(delete_returns, {"aid": asset_id})
-
-        # -------------------------
-        # INSERT PRICE DATA
-        # -------------------------
 
         price_insert = df[[
             "asset_id",
@@ -146,10 +103,6 @@ def load_prices():
             index=False
         )
 
-        # -------------------------
-        # INSERT RETURNS
-        # -------------------------
-
         return_insert = df[[
             "asset_id",
             "date",
@@ -166,11 +119,6 @@ def load_prices():
     print("Data load complete.")
 
 
-# -----------------------------
-# RUN
-# -----------------------------
-
 if __name__ == "__main__":
-
     load_assets()
     load_prices()

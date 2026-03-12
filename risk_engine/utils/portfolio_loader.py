@@ -1,10 +1,23 @@
+import os
 import pandas as pd
-from sqlalchemy import create_engine
+from db import engine
+# -----------------------------
+# DATABASE CONFIG
+# -----------------------------
 
-engine = create_engine("postgresql://localhost/risk_platform")
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://postgres:password@postgres-db:5432/riskdb"
+)
 
+
+
+# -----------------------------
+# PORTFOLIO RETURNS
+# -----------------------------
 
 def get_portfolio_returns(portfolio_id: int):
+
     weights_query = """
         SELECT asset_id, weight
         FROM positions
@@ -37,7 +50,9 @@ def get_portfolio_returns(portfolio_id: int):
     )
 
     weights = weights_df.set_index("asset_id")["weight"]
+
     returns_pivot = returns_pivot[weights.index]
 
     portfolio_returns = returns_pivot.dot(weights)
+
     return portfolio_returns.dropna()

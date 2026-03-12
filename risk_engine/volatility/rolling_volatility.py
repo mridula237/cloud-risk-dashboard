@@ -3,14 +3,7 @@ import numpy as np
 from sqlalchemy import create_engine, text
 
 import os
-from sqlalchemy import create_engine
-
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://localhost/risk_platform"
-)
-
-engine = create_engine(DATABASE_URL)
+from db import engine
 
 def calculate_rolling_volatility(window=30):
     query = """

@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+venv/
+
+# Node
+node_modules/
+dist/
+build/
+
+# OS
+.DS_Store
+
+# data
+*.csv
+*.parquet
+
+# models
+*.joblib
+
+# logs
+*.log
