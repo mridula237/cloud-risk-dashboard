@@ -49,26 +49,26 @@ function App() {
   const COLORS = ["#00d4ff", "#ff6b6b", "#ffa500", "#00c49f", "#8884d8"];
 
   const assetMap = {
-    3: "AAPL",
-    4: "MSFT",
-    8: "NVDA",
-    9: "AMZN",
-    10: "GOOGL",
-    5: "SPY",
-    12: "QQQ",
-    13: "DIA",
-    14: "IWM",
-    15: "XLF",
-    16: "XLE",
-    17: "XLI",
-    18: "TLT",
-    19: "IEF",
-    20: "LQD",
-    21: "GLD",
-    22: "SLV",
-    23: "USO",
-    24: "XLP",
-    25: "XLU",
+    1: "AAPL",
+    2: "MSFT",
+    3: "NVDA",
+    4: "AMZN",
+    5: "GOOGL",
+    6: "SPY",
+    7: "QQQ",
+    8: "DIA",
+    9: "IWM",
+    10: "XLF",
+    11: "XLE",
+    12: "XLI",
+    13: "TLT",
+    14: "IEF",
+    15: "LQD",
+    16: "GLD",
+    17: "SLV",
+    18: "USO",
+    19: "XLP",
+    20: "XLU",
   };
 
   useEffect(() => {
@@ -91,11 +91,7 @@ function App() {
     setCorrelation(corrData || []);
 
     if (allocationData && Array.isArray(allocationData)) {
-      const mapped = allocationData.map((item) => ({
-        ...item,
-        asset: assetMap[item.asset] || item.asset,
-      }));
-      setAllocation(mapped);
+      setAllocation(allocationData);
     }
 
     try {
@@ -549,8 +545,8 @@ fontWeight: Math.abs(v) > 0.8 ? "bold" : "normal"
                     dataKey="weight"
                     nameKey="asset"
                     outerRadius={120}
-                    label={({ name, percent }) =>
-                      `${name} ${(percent * 100).toFixed(0)}%`
+                    label={({ payload, percent }) =>
+                      percent > 0.03 ? `${payload.symbol} ${(percent * 100).toFixed(0)}%` : ''
                     }
                   >
                     {allocation.map((e, i) => (
@@ -561,8 +557,8 @@ fontWeight: Math.abs(v) > 0.8 ? "bold" : "normal"
                     ))}
                   </Pie>
 
-                  <Tooltip />
-                  <Legend />
+                  <Tooltip formatter={(value) => [`${(value * 100).toFixed(0)}%`]} />
+                  <Legend formatter={(value, entry) => entry.payload.symbol} />
                 </PieChart>
               </ResponsiveContainer>
             </div>

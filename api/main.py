@@ -6,9 +6,8 @@ import pandas as pd
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from db import engine
+from sqlalchemy import create_engine
 from risk_engine.utils.correlation_matrix import get_correlation_matrix
-from fastapi.middleware.cors import CORSMiddleware
 
 from risk_engine.stress_testing.portfolio_stress import run_stress_test
 from risk_engine.utils.correlation_matrix import get_correlation_matrix
@@ -16,16 +15,10 @@ from risk_engine.utils.correlation_matrix import get_correlation_matrix
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://localhost/risk_platform")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:password@postgres-db:5432/riskdb")
+engine = create_engine(DATABASE_URL)
 
 app = FastAPI(title="Cloud Risk Platform API")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 app.add_middleware(
     CORSMiddleware,
@@ -117,24 +110,6 @@ def portfolio_volatility(portfolio_id: int, window: int = 30):
     vol = series.rolling(window).std().dropna()
     out = [{"date": str(d), "volatility": float(v)} for d, v in vol.items()]
     return _json_safe(out)
-
-@app.get("/allocation")
-def portfolio_allocation():
-    import pandas as pd
-    from sqlalchemy import create_engine
-    
-    engine = create_engine(DATABASE_URL)
-
-    query = """
-    SELECT a.symbol, p.weight
-    FROM positions p
-    JOIN assets a ON p.asset_id = a.asset_id
-    WHERE p.portfolio_id = 1
-    """
-
-    df = pd.read_sql(query, engine)
-
-    return df.to_dict(orient="records")
 
 # -------------------------------------------------------
 # ✅ REQUIRED by your frontend: /portfolio/monte_carlo/{id}
@@ -230,20 +205,14 @@ def correlation_matrix():
 
 @app.get("/portfolio/{portfolio_id}/allocation")
 def get_portfolio_allocation(portfolio_id: int):
-
-    query = f"""
-        SELECT asset_id as asset, weight
-        FROM positions
-        WHERE portfolio_id = {portfolio_id}
+    query = """
+        SELECT a.symbol, p.weight
+        FROM positions p
+        JOIN assets a ON p.asset_id = a.asset_id
+        WHERE p.portfolio_id = %(pid)s
     """
-
-    df = pd.read_sql(query, engine)
-
-    if df.empty:
-        return []
-
+    df = pd.read_sql(query, engine, params={"pid": portfolio_id})
     return df.to_dict(orient="records")
-
 @app.post("/simulate")
 def simulate_portfolio(data: dict):
     investment = float(data.get("investment", 10000))
