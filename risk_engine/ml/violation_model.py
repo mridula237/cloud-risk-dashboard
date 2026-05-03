@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import os
-import math
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -19,6 +18,8 @@ from sklearn.metrics import (
     recall_score,
     f1_score,
     confusion_matrix,
+    balanced_accuracy_score,
+    matthews_corrcoef,
 )
 
 import joblib
@@ -142,6 +143,36 @@ def _load_portfolio_returns(portfolio_id: int) -> pd.Series:
 # Feature Engineering (Horizon-aware label)
 # ============================================================
 
+def _ewma_volatility(returns: pd.Series, lam: float = 0.94) -> pd.Series:
+    """
+    RiskMetrics EWMA volatility: σ²(t) = λ·σ²(t-1) + (1-λ)·r²(t-1).
+    λ=0.94 is the JPMorgan RiskMetrics standard for daily data.
+    Captures volatility clustering without needing GARCH optimization.
+    """
+    var = np.zeros(len(returns))
+    r = returns.values
+    var[0] = r[0] ** 2
+    for i in range(1, len(r)):
+        var[i] = lam * var[i - 1] + (1 - lam) * r[i - 1] ** 2
+    return pd.Series(np.sqrt(var), index=returns.index)
+
+
+def _fetch_vix(start_date, end_date) -> pd.Series | None:
+    """Fetch VIX from yfinance. Returns None silently if unavailable."""
+    try:
+        import yfinance as yf
+        vix = yf.download(
+            "^VIX", start=str(start_date), end=str(end_date),
+            progress=False, auto_adjust=True
+        )
+        if vix.empty:
+            return None
+        col = "Close" if "Close" in vix.columns else vix.columns[0]
+        return vix[col].squeeze()
+    except Exception:
+        return None
+
+
 def _build_dataset(
     portfolio_returns: pd.Series,
     confidence: float,
@@ -153,12 +184,15 @@ def _build_dataset(
     happens within the next `horizon_days` days.
 
     label(t) = 1 if min(return[t+1 ... t+horizon_days]) < VaR(t)
+
+    Features include:
+    - Price-derived: return, lags, rolling mean/vol/momentum/drawdown/skew/kurt
+    - EWMA volatility: RiskMetrics λ=0.94 conditional vol (captures volatility clustering)
+    - VIX macro: level, 1-day change, 20-day z-score (if yfinance available)
     """
     r = portfolio_returns.copy().dropna()
 
     var_t = r.rolling(window).quantile(1 - confidence)
-
-    # forward min over horizon
     future_min = r.shift(-1).rolling(horizon_days).min()
     label = (future_min < var_t).astype(int)
 
@@ -177,8 +211,18 @@ def _build_dataset(
         "drawdown": drawdown,
         "skew_20": r.rolling(20).skew(),
         "kurt_20": r.rolling(20).kurt(),
+        "ewma_vol": _ewma_volatility(r),
         "label": label,
     })
+
+    # VIX macro features — added only when yfinance is reachable
+    vix = _fetch_vix(r.index[0].date(), r.index[-1].date())
+    if vix is not None:
+        vix_a = vix.reindex(r.index, method="ffill")
+        vix_std = vix_a.rolling(20).std().replace(0, np.nan)
+        df["vix"] = vix_a
+        df["vix_chg"] = vix_a.pct_change()
+        df["vix_zscore"] = (vix_a - vix_a.rolling(20).mean()) / vix_std
 
     df = df.dropna()
     return df
@@ -246,11 +290,16 @@ def _binary_metrics(y_true: np.ndarray, y_prob: np.ndarray, threshold: float) ->
     if len(np.unique(y_true)) > 1:
         roc_auc = roc_auc_score(y_true, y_prob)
 
+    balanced_acc = balanced_accuracy_score(y_true, y_pred)
+    mcc = matthews_corrcoef(y_true, y_pred)
+
     return _json_safe({
         "roc_auc": roc_auc,
         "precision": precision,
         "recall": recall,
         "f1": f1,
+        "balanced_accuracy": balanced_acc,
+        "mcc": mcc,
         "threshold": threshold,
         "confusion_matrix": cm,
     })
@@ -266,6 +315,38 @@ def _best_threshold_f1(y_true: np.ndarray, y_prob: np.ndarray) -> float:
             best_f1 = f1
             best_t = float(t)
     return float(best_t)
+
+
+def _apply_smote(
+    X_train: np.ndarray,
+    y_train: np.ndarray,
+    sampling_strategy: float = 0.3,
+    random_state: int = 42,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Oversample the minority class using SMOTE on the training set only.
+    sampling_strategy=0.3 means minority will become 30% of the majority count
+    — less aggressive than 1:1, which works better for rare financial events.
+    Skips silently if imbalanced-learn is not installed or minority class is too small.
+    """
+    try:
+        from imblearn.over_sampling import SMOTE
+    except ImportError:
+        print("Warning: imbalanced-learn not installed. Skipping SMOTE. Run: pip install imbalanced-learn")
+        return X_train, y_train
+
+    pos = int(np.sum(y_train == 1))
+    neg = int(np.sum(y_train == 0))
+    if pos < 6:
+        return X_train, y_train
+    # Skip if minority is already at or above the target ratio (nothing to oversample)
+    if neg == 0 or pos / neg >= sampling_strategy:
+        return X_train, y_train
+
+    k = min(5, pos - 1)
+    sm = SMOTE(sampling_strategy=sampling_strategy, k_neighbors=k, random_state=random_state)
+    X_res, y_res = sm.fit_resample(X_train, y_train)
+    return X_res, y_res
 
 
 def _predict_proba(model, X: np.ndarray) -> np.ndarray:
@@ -351,9 +432,11 @@ def train_violation_model(
     window: int = 252,
     model_type: str = "logreg",
     horizon_days: int = 5,
+    use_smote: bool = True,
 ) -> Dict[str, Any]:
     """
     Trains model, finds best F1 threshold on held-out split, saves bundle, logs DB run.
+    SMOTE is applied only to the training split so the test set stays untouched.
     """
     pr = _load_portfolio_returns(portfolio_id)
     df = _build_dataset(pr, confidence, window, horizon_days=horizon_days)
@@ -365,6 +448,9 @@ def train_violation_model(
     split = int(len(df) * 0.8)
     X_train, X_test = X[:split], X[split:]
     y_train, y_test = y[:split], y[split:]
+
+    if use_smote:
+        X_train, y_train = _apply_smote(X_train, y_train)
 
     model = _make_model(model_type, y_train)
     model.fit(X_train, y_train)
@@ -380,7 +466,7 @@ def train_violation_model(
         "horizon_days": horizon_days,
         "confidence": confidence,
         "window": window,
-        "trained_at": datetime.utcnow().isoformat(),
+        "trained_at": datetime.now(timezone.utc).isoformat(),
         "metrics": metrics,
     }
     _save_bundle(portfolio_id, model_type, bundle)
@@ -465,10 +551,12 @@ def walkforward_validation(
     train_min_days: int = 756,
     step_days: int = 21,
     threshold: float = 0.35,
+    use_smote: bool = True,
 ) -> Dict[str, Any]:
     """
     Expanding-window walk-forward:
     Train on [0:train_end) -> test on next step_days.
+    SMOTE is applied inside each fold so synthetic samples never leak into test windows.
     """
     pr = _load_portfolio_returns(portfolio_id)
     df = _build_dataset(pr, confidence, window, horizon_days=horizon_days).sort_index()
@@ -491,8 +579,9 @@ def walkforward_validation(
         X_test, y_test = X[train_end:train_end + step_days], y[train_end:train_end + step_days]
         test_dates = dates[train_end:train_end + step_days]
 
-        model = _make_model(model_type, y_train)
-        model.fit(X_train, y_train)
+        X_fit, y_fit = _apply_smote(X_train, y_train) if use_smote else (X_train, y_train)
+        model = _make_model(model_type, y_fit)
+        model.fit(X_fit, y_fit)
 
         y_prob = _predict_proba(model, X_test)
         fold_metrics = _binary_metrics(y_test, y_prob, threshold)
@@ -746,6 +835,7 @@ def compare_violation_models(
     window: int = 252,
     horizon_days: int = 5,
     threshold: float = 0.35,
+    use_smote: bool = True,
 ) -> Dict[str, Any]:
     """
     Trains both logreg and xgb on the same split and compares metrics at a fixed threshold.
@@ -761,12 +851,14 @@ def compare_violation_models(
     X_train, X_test = X[:split], X[split:]
     y_train, y_test = y[:split], y[split:]
 
+    X_fit, y_fit = _apply_smote(X_train, y_train) if use_smote else (X_train, y_train)
+
     out = {}
 
     for mt in ["logreg", "xgb"]:
         try:
-            model = _make_model(mt, y_train)
-            model.fit(X_train, y_train)
+            model = _make_model(mt, y_fit)
+            model.fit(X_fit, y_fit)
             y_prob = _predict_proba(model, X_test)
             out[mt] = _binary_metrics(y_test, y_prob, threshold)
         except Exception as e:

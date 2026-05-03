@@ -14,3 +14,4 @@ pydantic==2.7.1
 python-dateutil==2.9.0.post0
 pytz==2024.1
 requests==2.32.2
+imbalanced-learn==0.14.1
